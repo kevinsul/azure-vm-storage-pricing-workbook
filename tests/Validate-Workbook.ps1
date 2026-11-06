@@ -218,7 +218,7 @@ try {
     $portalTemplatePath = Join-Path $root 'azuredeploy.json'
     if (Test-Path -LiteralPath $portalTemplatePath) {
         $portalTemplate = Get-Content -LiteralPath $portalTemplatePath -Raw
-        Assert-True ($portalTemplate.Trim() -ceq $templateText.Trim()) 'Portal template matches Bicep source; regenerate azuredeploy.json after source changes'
+        Assert-True ($portalTemplate.Replace("`r`n", "`n").Trim() -ceq $templateText.Replace("`r`n", "`n").Trim()) 'Portal template matches Bicep source; regenerate azuredeploy.json after source changes'
     }
 } finally {
     if (Test-Path -LiteralPath $compiledPath) {
