@@ -1,0 +1,47 @@
+Resources
+| where __PUBLIC_CLOUD__
+| where type in~ (
+    'microsoft.compute/disks',
+    'microsoft.compute/snapshots',
+    'microsoft.storage/storageaccounts',
+    'microsoft.storage/storageaccounts/fileservices/shares',
+    'microsoft.storagesync/storagesyncservices',
+    'microsoft.elasticsan/elasticsans',
+    'microsoft.netapp/netappaccounts/capacitypools/volumes')
+| where '*' in ({ResourceGroups}) or tolower(strcat('/subscriptions/', subscriptionId, '/resourceGroups/', resourceGroup)) in ({ResourceGroups})
+| extend regionalRate = case(__REGION_CASE__, 0)
+| where regionalRate > 0
+| extend resourceType = tolower(type), accountKind = tolower(kind), skuName = tolower(tostring(sku.name)), shareTier = tolower(tostring(properties.accessTier))
+| extend diskService = case(__DISK_CASE__, '')
+| extend service = case(
+    resourceType == 'microsoft.compute/disks' and isnotempty(diskService), diskService,
+    resourceType == 'microsoft.compute/disks', 'Managed disk - unrecognized SKU',
+    resourceType == 'microsoft.compute/snapshots', 'Snapshot - inclusion unconfirmed',
+    resourceType == 'microsoft.elasticsan/elasticsans', 'Azure Elastic SAN',
+    resourceType == 'microsoft.netapp/netappaccounts/capacitypools/volumes', 'Azure NetApp Files',
+    resourceType == 'microsoft.storagesync/storagesyncservices', 'File Sync',
+    resourceType == 'microsoft.storage/storageaccounts/fileservices/shares', 'Azure Files share',
+    accountKind == 'filestorage', 'Premium Files / Files Provisioned v2 - verify billing model',
+    accountKind == 'blockblobstorage', 'Premium Block Blob / ADLS Gen2',
+    accountKind == 'blobstorage', 'Blob Storage',
+    accountKind == 'storagev2', 'GPv2 - Blob v2 / ADLS Gen2 / Page Blob v2 / eligible Files',
+    accountKind == 'storage', 'Legacy account - check Premium Page Blob versus excluded services',
+    'Storage account - unrecognized kind')
+| extend classification = case(
+    resourceType == 'microsoft.compute/snapshots', 'Review - inclusion unconfirmed',
+    resourceType == 'microsoft.compute/disks' and isempty(diskService), 'Review - SKU unrecognized',
+    resourceType == 'microsoft.storage/storageaccounts/fileservices/shares' and shareTier == 'transactionoptimized', 'Excluded',
+    resourceType == 'microsoft.storage/storageaccounts/fileservices/shares' and shareTier !in ('premium', 'hot', 'cool'), 'Review - share tier not exposed',
+    resourceType == 'microsoft.storage/storageaccounts', 'Candidate - verify service/meter',
+    'Included service/SKU')
+| where classification != 'Excluded'
+| extend assessment = case(
+    resourceType == 'microsoft.compute/snapshots', 'Do not assume snapshot meters inherit disk pricing; request meter-level confirmation.',
+    resourceType == 'microsoft.compute/disks' and isempty(diskService), 'Check SKU against updated price sheet; no definite inclusion inferred.',
+    resourceType == 'microsoft.compute/disks', 'This disk product is included in the announced regional change. Verify reservation/contract and exact billed meters.',
+    resourceType == 'microsoft.storage/storageaccounts/fileservices/shares', 'Transaction-Optimized is excluded. Confirm tier, billing model and meters; parent account may also appear.',
+    resourceType == 'microsoft.storage/storageaccounts', 'Account is a candidate, not an all-meter increase. Excluded: General Block Blob (not v2), Standard Page Blob (not v2), Transaction-Optimized Files, Queues/Queues v2, Tables, Blob Features, Change Feed, Storage Bandwidth, Storage Actions and Storage Discovery.',
+    resourceType == 'microsoft.netapp/netappaccounts/capacitypools/volumes', 'Azure NetApp Files is included; Cross Region Replication SKU is excluded. Resource count is not a meter count.',
+    resourceType == 'microsoft.storagesync/storagesyncservices', 'File Sync is included. This is a service container, not a count of billable servers.',
+    'Azure Elastic SAN is included in the announced regional change; confirm billed meters and commercial coverage.')
+| extend ratePercent = iff(classification startswith 'Review', 0, regionalRate)

@@ -1,0 +1,24 @@
+Resources
+| where __PUBLIC_CLOUD__
+| where type in~ ('microsoft.compute/virtualmachines', 'microsoft.compute/virtualmachinescalesets')
+| where '*' in ({ResourceGroups}) or tolower(strcat('/subscriptions/', subscriptionId, '/resourceGroups/', resourceGroup)) in ({ResourceGroups})
+| extend resourceKind = iff(type =~ 'microsoft.compute/virtualmachines', 'VM', 'VM scale-set model')
+| extend vmSize = tolower(iff(resourceKind == 'VM', tostring(properties.hardwareProfile.vmSize), tostring(sku.name)))
+| extend legacySeries = case(__LEGACY_CASE__, '')
+| extend regionalRate = case(__REGION_CASE__, 0)
+| extend isRegionalExcluded = vmSize matches regex @'__REGIONAL_EXCLUDED_PATTERN__'
+| extend powerState = iff(resourceKind == 'VM', tolower(tostring(properties.extended.instanceView.powerState.code)), '')
+| extend powerState = iff(isempty(powerState), 'unknown / not exposed', powerState)
+| where '{ComputeState}' == 'AllDeployed' or (resourceKind == 'VM' and powerState == 'powerstate/running')
+| extend changeCategory = case(
+    isnotempty(legacySeries), 'Legacy VM - approximately 25%',
+    isempty(vmSize), 'Review - VM size not exposed',
+    regionalRate > 0 and not(isRegionalExcluded), 'Regional VM',
+    'Excluded')
+| where changeCategory != 'Excluded'
+| extend ratePercent = case(isnotempty(legacySeries), __LEGACY_PERCENT__, isempty(vmSize), 0, regionalRate)
+| extend reportedModelCapacity = iff(resourceKind == 'VM scale-set model', tostring(sku.capacity), 'n/a')
+| extend assessment = case(
+    isempty(vmSize), 'Review model and instance SKUs; rate cannot be determined from this resource.',
+    isnotempty(legacySeries), 'Approximate list-rate increase; no additional regional VM increase. Check commitment and agreement coverage.',
+    'In scope based on the announced exclusions; confirm billable SKU and agreement. Not a billed-cost calculation.')

@@ -1,0 +1,149 @@
+{
+  "version": "Notebook/1.0",
+  "isLocked": false,
+  "fallbackResourceIds": ["Azure Monitor"],
+  "items": [
+    {
+      "type": 1,
+      "name": "overview",
+      "content": {
+        "json": "# Azure VM and Storage pricing exposure\n**Report revision 1.2 - Changes beginning February 1, 2027**\n\nThis Workbook identifies deployed resources potentially exposed to the announced Azure VM and Storage price changes. **Inventory exposure, not a cost forecast. Azure public cloud only.** Other clouds return no inventory by design.\n\n### Announced changes\n- **Legacy VMs:** approximately **25%** for Bv1, D, Ds, F, Fs, G, Gs, Ls, NP, HC, Av2, Amv2, Dv2, Dsv2, Fsv2 and Lsv2, across public-cloud regions.\n- **Regional VMs and Storage:** West Europe **9%**, North Europe **17%**, France Central/South **11%**, Norway East/West **9%**, Southeast Asia **8%**.\n- Legacy VM and regional VM increases **do not stack**. Dsv7, Ddsv7, Dlsv7, Dldsv7, Esv7 and Edsv7 are excluded from the regional VM change. Separately billed disks/storage may still be affected.\n\n### Using the two inventory tables\nSelect subscriptions, then resource groups. Click a VM or storage resource name to open its Azure portal overview; the increase percentage appears immediately after the name.\n\n**All deployed** includes stopped/deallocated VMs and scale-set models. **Reported running VMs only** includes VMs whose Resource Graph power state reports running; unknown states are not proof of running or stopped. Scale-set model capacity is configured capacity, not a verified running count; do not add it to member VM counts. **The compute-state filter does not filter storage.** Include the resource groups containing storage accounts/disks to see regional storage exposure.\n\n### Interpreting storage and financial impact\n- **Included service/SKU:** a product explicitly included in the announced regional change; not a claim that every associated meter or covered reservation increases.\n- **Candidate - verify service/meter:** a storage account that can host affected services. Account kind/SKU alone cannot prove affected usage; included and excluded services may share an account.\n- **Review:** inclusion or metadata needs confirmation. **0 = review**, not a confirmed zero increase. Snapshot inclusion is unconfirmed. Consult each row's assessment for exclusions and qualifications.\n\nExisting VM reservations retain purchase pricing through their contracted term. Actual impact depends on billable usage, agreement terms, discounts, commitments and updated meter prices. Resource Graph is eventually consistent and limited to resources the viewer can read. Tables and pickers can return at most **1,000 rows per query**; narrow the selected scope for larger inventories."
+      }
+    },
+    {
+      "type": 9,
+      "name": "scope",
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "style": "above",
+        "parameters": [
+          {
+            "id": "38a0a9ce-eab3-4110-954d-b3c96735bb08",
+            "version": "KqlParameterItem/1.0",
+            "name": "Subscriptions",
+            "label": "Subscriptions",
+            "type": 6,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "value": ["value::all"],
+            "typeSettings": {
+              "additionalResourceOptions": ["value::all"],
+              "showDefault": false
+            }
+          },
+          {
+            "id": "a16c239d-ae23-43f3-886b-f12685e0a06f",
+            "version": "KqlParameterItem/1.0",
+            "name": "ResourceGroups",
+            "label": "Resource groups",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "value": ["value::all"],
+            "query": "ResourceContainers\n| where type =~ 'microsoft.resources/subscriptions/resourcegroups'\n| project value = tolower(id), label = strcat(name, ' (', subscriptionId, ')')\n| order by label asc",
+            "queryType": 1,
+            "resourceType": "microsoft.resourcegraph/resources",
+            "crossComponentResources": ["{Subscriptions}"],
+            "typeSettings": {
+              "additionalResourceOptions": ["value::all"],
+              "selectAllValue": "*",
+              "showDefault": false
+            }
+          },
+          {
+            "id": "7ca05fc9-1cb8-4aa9-a153-c437c491d0de",
+            "version": "KqlParameterItem/1.0",
+            "name": "ComputeState",
+            "label": "Compute state",
+            "type": 2,
+            "isRequired": true,
+            "multiSelect": false,
+            "value": "AllDeployed",
+            "jsonData": "[{\"value\":\"AllDeployed\",\"label\":\"All deployed (including scale-set models)\"},{\"value\":\"Running\",\"label\":\"Reported running VMs only\"}]"
+          }
+        ]
+      }
+    },
+    {
+      "type": 3,
+      "name": "compute-details",
+      "content": {
+        "version": "KqlItem/1.0",
+        "title": "VM and scale-set model inventory - legacy ~25% and regional changes",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": ["{Subscriptions}"],
+        "query": "__COMPUTE_BASE__\n| project id, name, ratePercent, subscriptionId, resourceGroup, location, resourceKind, vmSize, legacySeries, powerState, reportedModelCapacity, changeCategory, assessment\n| order by changeCategory asc, id asc",
+        "size": 0,
+        "visualization": "table",
+        "noDataMessage": "No impacted VMs in the selected subscriptions/resource groups and compute state. Select All deployed to include stopped, deallocated and unknown-state VMs.",
+        "showExportToExcel": true,
+        "gridSettings": {
+          "filter": true,
+          "rowLimit": 1000,
+          "formatters": [
+            {
+              "columnMatch": "name",
+              "formatter": 7,
+              "formatOptions": {
+                "linkTarget": "Resource",
+                "linkColumn": "id",
+                "linkIsContextBlade": false
+              }
+            },
+            { "columnMatch": "id", "formatter": 5 }
+          ],
+          "labelSettings": [
+            { "columnId": "name", "label": "VM / scale-set name (open in Azure portal)" },
+            { "columnId": "ratePercent", "label": "Announced increase % (0 = review; legacy approximate)" },
+            { "columnId": "reportedModelCapacity", "label": "Model capacity (not running count)" },
+            { "columnId": "id", "label": "Resource ID" }
+          ]
+        }
+      }
+    },
+    {
+      "type": 3,
+      "name": "storage-details",
+      "content": {
+        "version": "KqlItem/1.0",
+        "title": "Regional Storage inventory - included products, candidates and unconfirmed resources",
+        "queryType": 1,
+        "resourceType": "microsoft.resourcegraph/resources",
+        "crossComponentResources": ["{Subscriptions}"],
+        "query": "__STORAGE_BASE__\n| project id, name, ratePercent, subscriptionId, resourceGroup, location, resourceType, accountKind, skuName, shareTier, service, classification, regionalRate, assessment\n| order by classification asc, id asc",
+        "size": 0,
+        "visualization": "table",
+        "noDataMessage": "No regional storage resources in the selected subscriptions/resource groups. Include groups containing storage accounts or managed disks. Storage is independent of the compute-state filter; legacy-region OS disks outside the seven regions are intentionally absent.",
+        "showExportToExcel": true,
+        "gridSettings": {
+          "filter": true,
+          "rowLimit": 1000,
+          "formatters": [
+            {
+              "columnMatch": "name",
+              "formatter": 7,
+              "formatOptions": {
+                "linkTarget": "Resource",
+                "linkColumn": "id",
+                "linkIsContextBlade": false
+              }
+            },
+            { "columnMatch": "id", "formatter": 5 }
+          ],
+          "labelSettings": [
+            { "columnId": "name", "label": "Storage resource (open in Azure portal)" },
+            { "columnId": "ratePercent", "label": "Service increase % (0 = review; candidates conditional)" },
+            { "columnId": "regionalRate", "label": "Announced region increase %" },
+            { "columnId": "id", "label": "Resource ID" }
+          ]
+        }
+      }
+    }
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

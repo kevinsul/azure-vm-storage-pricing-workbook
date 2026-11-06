@@ -1,0 +1,7 @@
+.azure/
+.az/
+.env
+.env.*
+*.local.bicepparam
+*.local.parameters.json
+*.log

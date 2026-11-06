@@ -1,0 +1,41 @@
+{
+  "effectiveDate": "2027-02-01",
+  "legacyApproximateIncreasePercent": 25,
+  "legacyVmSeries": [
+    { "name": "Bv1", "pattern": "^(standard|basic)_b[0-9]+(ls|ms|s)$" },
+    { "name": "D", "pattern": "^(standard|basic)_d[0-9]+$" },
+    { "name": "Ds", "pattern": "^(standard|basic)_ds[0-9]+$" },
+    { "name": "F", "pattern": "^standard_f[0-9]+$" },
+    { "name": "Fs", "pattern": "^standard_f[0-9]+s$" },
+    { "name": "G", "pattern": "^standard_g[0-9]+$" },
+    { "name": "Gs", "pattern": "^standard_gs[0-9]+(-[0-9]+)?$" },
+    { "name": "Ls", "pattern": "^standard_l[0-9]+s$" },
+    { "name": "NP", "pattern": "^standard_np[0-9]+s$" },
+    { "name": "HC", "pattern": "^standard_hc[0-9]+rs$" },
+    { "name": "Av2", "pattern": "^standard_a[0-9]+_v2$" },
+    { "name": "Amv2", "pattern": "^standard_a[0-9]+m_v2$" },
+    { "name": "Dv2", "pattern": "^standard_d[0-9]+_v2$" },
+    { "name": "Dsv2", "pattern": "^standard_ds[0-9]+(-[0-9]+)?_v2$" },
+    { "name": "Fsv2", "pattern": "^standard_f[0-9]+s_v2$" },
+    { "name": "Lsv2", "pattern": "^standard_l[0-9]+s_v2$" }
+  ],
+  "regionalExcludedVmPattern": "^standard_(d[0-9]+(-[0-9]+)?(s|ds|ls|lds)|e[0-9]+(-[0-9]+)?(s|ds))_v7$",
+  "regions": [
+    { "name": "westeurope", "label": "West Europe", "increasePercent": 9 },
+    { "name": "northeurope", "label": "North Europe", "increasePercent": 17 },
+    { "name": "francecentral", "label": "France Central", "increasePercent": 11 },
+    { "name": "francesouth", "label": "France South", "increasePercent": 11 },
+    { "name": "norwayeast", "label": "Norway East", "increasePercent": 9 },
+    { "name": "norwaywest", "label": "Norway West", "increasePercent": 9 },
+    { "name": "southeastasia", "label": "Southeast Asia", "increasePercent": 8 }
+  ],
+  "managedDiskSkus": [
+    { "name": "standard_lrs", "service": "Standard HDD Managed Disks" },
+    { "name": "standardssd_lrs", "service": "Standard SSD Managed Disks" },
+    { "name": "standardssd_zrs", "service": "Standard SSD Managed Disks" },
+    { "name": "premium_lrs", "service": "Premium SSD Managed Disks (v1)" },
+    { "name": "premium_zrs", "service": "Premium SSD Managed Disks (v1)" },
+    { "name": "premiumv2_lrs", "service": "Premium SSD v2" },
+    { "name": "ultrassd_lrs", "service": "Ultra Disks" }
+  ]
+}
